@@ -1,17 +1,21 @@
 <?php
 
+namespace PhpParser\Node\Expr;
+
+use PhpParser\Node\Expr;
+
 /**
- * @property PHPParser_Node_Expr $expr Expression
+ * @property Expr $expr Expression
  */
-class PHPParser_Node_Expr_BitwiseNot extends PHPParser_Node_Expr
+class BitwiseNot extends Expr
 {
     /**
      * Constructs a bitwise not node.
      *
-     * @param PHPParser_Node_Expr $expr       Expression
-     * @param array               $attributes Additional attributes
+     * @param Expr  $expr       Expression
+     * @param array $attributes Additional attributes
      */
-    public function __construct(PHPParser_Node_Expr $expr, array $attributes = array()) {
+    public function __construct(Expr $expr, array $attributes = array()) {
         parent::__construct(
             array(
                 'expr' => $expr

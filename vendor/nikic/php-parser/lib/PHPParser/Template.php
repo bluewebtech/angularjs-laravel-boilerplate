@@ -1,6 +1,11 @@
 <?php
 
-class PHPParser_Template
+namespace PhpParser;
+
+/**
+ * @deprecated
+ */
+class Template
 {
     protected $parser;
     protected $template;
@@ -8,10 +13,10 @@ class PHPParser_Template
     /**
      * Creates a new code template from a template string.
      *
-     * @param PHPParser_Parser $parser   A parser instance
-     * @param string           $template The template string
+     * @param Parser $parser   A parser instance
+     * @param string $template The template string
      */
-    public function __construct(PHPParser_Parser $parser, $template) {
+    public function __construct(Parser $parser, $template) {
         $this->parser   = $parser;
         $this->template = $template;
     }
@@ -22,7 +27,7 @@ class PHPParser_Template
      *
      * @param array $placeholders Placeholders
      *
-     * @return PHPParser_Node[] Statements
+     * @return Node[] Statements
      */
     public function getStmts(array $placeholders) {
         return $this->parser->parse(

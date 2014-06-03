@@ -1,9 +1,13 @@
 <?php
 
+namespace PhpParser\Node;
+
+use PhpParser\NodeAbstract;
+
 /**
  * @property array $parts Parts of the name
  */
-class PHPParser_Node_Name extends PHPParser_NodeAbstract
+class Name extends NodeAbstract
 {
     /**
      * Constructs a name node.
@@ -161,7 +165,7 @@ class PHPParser_Node_Name extends PHPParser_NodeAbstract
             return $name->parts;
         }
 
-        throw new InvalidArgumentException(
+        throw new \InvalidArgumentException(
             'When changing a name you need to pass either a string, an array or a Name node'
         );
     }

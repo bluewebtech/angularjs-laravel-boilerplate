@@ -4,8 +4,13 @@ use Closure;
 use DateTime;
 use ArrayAccess;
 use Carbon\Carbon;
+use Illuminate\Support\Traits\MacroableTrait;
 
 class Repository implements ArrayAccess {
+
+	use MacroableTrait {
+		__call as macroCall;
+	}
 
 	/**
 	 * The cache store implementation.
@@ -57,11 +62,27 @@ class Repository implements ArrayAccess {
 	}
 
 	/**
+	 * Retrieve an item from the cache and delete it.
+	 *
+	 * @param  string  $key
+	 * @param  mixed   $default
+	 * @return mixed
+	 */
+	public function pull($key, $default = null)
+	{
+		$value = $this->get($key, $default);
+
+		$this->forget($key);
+
+		return $value;
+	}
+
+	/**
 	 * Store an item in the cache.
 	 *
-	 * @param  string              $key
-	 * @param  mixed               $value
-	 * @param  Carbon|Datetime|int $minutes
+	 * @param  string  $key
+	 * @param  mixed   $value
+	 * @param  \DateTime|int  $minutes
 	 * @return void
 	 */
 	public function put($key, $value, $minutes)
@@ -74,9 +95,9 @@ class Repository implements ArrayAccess {
 	/**
 	 * Store an item in the cache if the key does not exist.
 	 *
-	 * @param  string              $key
-	 * @param  mixed               $value
-	 * @param  Carbon|Datetime|int $minutes
+	 * @param  string  $key
+	 * @param  mixed   $value
+	 * @param  \DateTime|int  $minutes
 	 * @return bool
 	 */
 	public function add($key, $value, $minutes)
@@ -92,9 +113,9 @@ class Repository implements ArrayAccess {
 	/**
 	 * Get an item from the cache, or store the default value.
 	 *
-	 * @param  string              $key
-	 * @param  Carbon|Datetime|int $minutes
-	 * @param  Closure             $callback
+	 * @param  string  $key
+	 * @param  \DateTime|int  $minutes
+	 * @param  Closure  $callback
 	 * @return mixed
 	 */
 	public function remember($key, $minutes, Closure $callback)
@@ -225,28 +246,21 @@ class Repository implements ArrayAccess {
 	/**
 	 * Calculate the number of minutes with the given duration.
 	 *
-	 * @param  Carbon|DateTime|int  $duration
+	 * @param  \DateTime|int  $duration
 	 * @return int
 	 */
 	protected function getMinutes($duration)
 	{
 		if ($duration instanceof DateTime)
 		{
-			$duration = Carbon::instance($duration);
+			return max(0, Carbon::instance($duration)->diffInMinutes());
 		}
 
-		if ($duration instanceof Carbon)
-		{
-			return max(0, Carbon::now()->diffInMinutes($duration, false));
-		}
-		else
-		{
-			return intval($duration);
-		}
+		return is_string($duration) ? intval($duration) : $duration;
 	}
 
 	/**
-	 * Dynamically pass missing methods to the store.
+	 * Handle dynamic calls into macros or pass missing methods to the store.
 	 *
 	 * @param  string  $method
 	 * @param  array   $parameters
@@ -254,7 +268,14 @@ class Repository implements ArrayAccess {
 	 */
 	public function __call($method, $parameters)
 	{
-		return call_user_func_array(array($this->store, $method), $parameters);
+		if (static::hasMacro($method))
+		{
+			return $this->macroCall($method, $parameters);
+		}
+		else
+		{
+			return call_user_func_array(array($this->store, $method), $parameters);
+		}
 	}
 
 }

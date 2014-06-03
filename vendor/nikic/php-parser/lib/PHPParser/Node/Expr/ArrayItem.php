@@ -1,21 +1,25 @@
 <?php
 
+namespace PhpParser\Node\Expr;
+
+use PhpParser\Node\Expr;
+
 /**
- * @property PHPParser_Node_Expr      $value Value
- * @property null|PHPParser_Node_Expr $key   Key
+ * @property Expr      $value Value
+ * @property null|Expr $key   Key
  * @property bool                     $byRef Whether to assign by reference
  */
-class PHPParser_Node_Expr_ArrayItem extends PHPParser_Node_Expr
+class ArrayItem extends Expr
 {
     /**
      * Constructs an array item node.
      *
-     * @param PHPParser_Node_Expr      $value      Value
-     * @param null|PHPParser_Node_Expr $key        Key
-     * @param bool                     $byRef      Whether to assign by reference
-     * @param array                    $attributes Additional attributes
+     * @param Expr      $value      Value
+     * @param null|Expr $key        Key
+     * @param bool      $byRef      Whether to assign by reference
+     * @param array     $attributes Additional attributes
      */
-    public function __construct(PHPParser_Node_Expr $value, PHPParser_Node_Expr $key = null, $byRef = false, array $attributes = array()) {
+    public function __construct(Expr $value, Expr $key = null, $byRef = false, array $attributes = array()) {
         parent::__construct(
             array(
                 'key'   => $key,

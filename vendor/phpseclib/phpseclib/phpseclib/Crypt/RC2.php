@@ -14,7 +14,7 @@
  * Here's a short example of how to use this library:
  * <code>
  * <?php
- *    include('Crypt/RC2.php');
+ *    include 'Crypt/RC2.php';
  *
  *    $rc2 = new Crypt_RC2();
  *
@@ -117,7 +117,6 @@ define('CRYPT_RC2_MODE_MCRYPT', CRYPT_MODE_MCRYPT);
  * Pure-PHP implementation of RC2.
  *
  * @package Crypt_RC2
- * @version 0.1.1
  * @access  public
  */
 class Crypt_RC2 extends Crypt_Base
@@ -333,7 +332,7 @@ class Crypt_RC2 extends Crypt_Base
      *
      * - CRYPT_RC2_MODE_OFB
      *
-     * If not explictly set, CRYPT_RC2_MODE_CBC will be used.
+     * If not explicitly set, CRYPT_RC2_MODE_CBC will be used.
      *
      * @see Crypt_Base::Crypt_Base()
      * @param optional Integer $mode
@@ -651,4 +650,3 @@ class Crypt_RC2 extends Crypt_Base
         $this->inline_crypt = $lambda_functions[$code_hash];
     }
 }
-

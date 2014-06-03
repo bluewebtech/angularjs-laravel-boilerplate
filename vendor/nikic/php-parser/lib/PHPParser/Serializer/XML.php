@@ -1,6 +1,13 @@
 <?php
 
-class PHPParser_Serializer_XML implements PHPParser_Serializer
+namespace PhpParser\Serializer;
+
+use XMLWriter;
+use PhpParser\Node;
+use PhpParser\Comment;
+use PhpParser\Serializer;
+
+class XML implements Serializer
 {
     protected $writer;
 
@@ -31,7 +38,7 @@ class PHPParser_Serializer_XML implements PHPParser_Serializer
     }
 
     protected function _serialize($node) {
-        if ($node instanceof PHPParser_Node) {
+        if ($node instanceof Node) {
             $this->writer->startElement('node:' . $node->getType());
 
             foreach ($node->getAttributes() as $name => $value) {
@@ -47,9 +54,9 @@ class PHPParser_Serializer_XML implements PHPParser_Serializer
             }
 
             $this->writer->endElement();
-        } elseif ($node instanceof PHPParser_Comment) {
+        } elseif ($node instanceof Comment) {
             $this->writer->startElement('comment');
-            $this->writer->writeAttribute('isDocComment', $node instanceof PHPParser_Comment_Doc ? 'true' : 'false');
+            $this->writer->writeAttribute('isDocComment', $node instanceof Comment\Doc ? 'true' : 'false');
             $this->writer->writeAttribute('line', $node->getLine());
             $this->writer->text($node->getText());
             $this->writer->endElement();
@@ -72,7 +79,7 @@ class PHPParser_Serializer_XML implements PHPParser_Serializer
         } elseif (null === $node) {
             $this->writer->writeElement('scalar:null');
         } else {
-            throw new InvalidArgumentException('Unexpected node type');
+            throw new \InvalidArgumentException('Unexpected node type');
         }
     }
 }

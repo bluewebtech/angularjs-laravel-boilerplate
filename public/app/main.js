@@ -7,8 +7,7 @@ require(
 		'conf/config',
         "conf/routes",
 		'app',
-		'services/routeResolver',
-		'directives/top'
+		'services/routeResolver'
 	],
 	function () {
 		angular.bootstrap(document, [config.appName]);

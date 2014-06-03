@@ -158,6 +158,7 @@ class ControllerDispatcher {
 	 * @param  array  $filter
 	 * @param  \Illuminate\Http\Request  $request
 	 * @param  string  $method
+	 * @return bool
 	 */
 	protected function filterApplies($filter, $request, $method)
 	{
@@ -173,11 +174,12 @@ class ControllerDispatcher {
 	}
 
 	/**
-	 * Determine if the filter fails the "only" cosntraint.
+	 * Determine if the filter fails the "only" constraint.
 	 *
 	 * @param  array  $filter
 	 * @param  \Illuminate\Http\Request  $request
 	 * @param  string  $method
+	 * @return bool
 	 */
 	protected function filterFailsOnly($filter, $request, $method)
 	{
@@ -187,11 +189,12 @@ class ControllerDispatcher {
 	}
 
 	/**
-	 * Determine if the filter fails the "except" cosntraint.
+	 * Determine if the filter fails the "except" constraint.
 	 *
 	 * @param  array  $filter
 	 * @param  \Illuminate\Http\Request  $request
 	 * @param  string  $method
+	 * @return bool
 	 */
 	protected function filterFailsExcept($filter, $request, $method)
 	{
@@ -201,11 +204,12 @@ class ControllerDispatcher {
 	}
 
 	/**
-	 * Determine if the filter fails the "on" cosntraint.
+	 * Determine if the filter fails the "on" constraint.
 	 *
 	 * @param  array  $filter
 	 * @param  \Illuminate\Http\Request  $request
 	 * @param  string  $method
+	 * @return bool
 	 */
 	protected function filterFailsOn($filter, $request, $method)
 	{

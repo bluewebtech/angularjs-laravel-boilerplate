@@ -34,17 +34,6 @@ class Filesystem {
 	}
 
 	/**
-	 * Get the contents of a remote file.
-	 *
-	 * @param  string  $path
-	 * @return string
-	 */
-	public function getRemote($path)
-	{
-		return file_get_contents($path);
-	}
-
-	/**
 	 * Get the returned value of a file.
 	 *
 	 * @param  string  $path
@@ -302,7 +291,7 @@ class Filesystem {
 	 * @param  bool    $force
 	 * @return bool
 	 */
-	public function makeDirectory($path, $mode = 0777, $recursive = false, $force = false)
+	public function makeDirectory($path, $mode = 0755, $recursive = false, $force = false)
 	{
 		if ($force)
 		{

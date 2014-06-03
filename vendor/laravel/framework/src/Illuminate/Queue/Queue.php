@@ -3,6 +3,7 @@
 use Closure;
 use DateTime;
 use Illuminate\Container\Container;
+use Illuminate\Encryption\Encrypter;
 use Illuminate\Support\SerializableClosure;
 
 abstract class Queue {
@@ -27,8 +28,8 @@ abstract class Queue {
 	/**
 	 * Push a new an array of jobs onto the queue.
 	 *
-	 * @param  array  $jobs
-	 * @param  mixed  $data
+	 * @param  array   $jobs
+	 * @param  mixed   $data
 	 * @param  string  $queue
 	 * @return mixed
 	 */
@@ -64,12 +65,12 @@ abstract class Queue {
 	 * Create a payload string for the given Closure job.
 	 *
 	 * @param  \Closure  $job
-	 * @param  mixed  $data
+	 * @param  mixed     $data
 	 * @return string
 	 */
 	protected function createClosurePayload($job, $data)
 	{
-		$closure = serialize(new SerializableClosure($job));
+		$closure = $this->crypt->encrypt(serialize(new SerializableClosure($job)));
 
 		return array('job' => 'IlluminateQueueClosure', 'data' => compact('closure'));
 	}
@@ -126,6 +127,17 @@ abstract class Queue {
 	public function setContainer(Container $container)
 	{
 		$this->container = $container;
+	}
+
+	/**
+	 * Set the encrypter instance.
+	 *
+	 * @param  \Illuminate\Encryption\Encrypter  $crypt
+	 * @return void
+	 */
+	public function setEncrypter(Encrypter $crypt)
+	{
+		$this->crypt = $crypt;
 	}
 
 }

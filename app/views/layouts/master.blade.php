@@ -5,7 +5,7 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
 	<title>AngularJS + Laravel Boilerplate</title>
-	<link rel="stylesheet" type="text/css" href="/assets/styles/web.css" />
+	<link rel="stylesheet" type="text/css" href="/resources/styles/web.css" />
 </head>
 <body>
 
@@ -24,11 +24,11 @@
 
 	<div class="container" ng-view></div>
 
-	<script type="text/javascript" src="/assets/js/lib/jquery/jquery-1.10.2.min.js"></script>
-	<script type="text/javascript" src="/assets/js/lib/bootstrap/bootstrap.min.js"></script>
-	<script type="text/javascript" src="/assets/js/lib/angularjs/angular.min.js"></script>
-	<script type="text/javascript" src="/assets/js/lib/angularjs/angular-route.min.js"></script>
-	<script type="text/javascript" src="/assets/js/lib/angularjs/angular-animate.min.js"></script>
-	<script type="text/javascript" src="/assets/js/lib/requirejs/require.min.js" data-main="/app/main"></script>
+	<script type="text/javascript" src="/resources/js/lib/jquery/jquery-1.10.2.min.js"></script>
+	<script type="text/javascript" src="/resources/js/lib/bootstrap/bootstrap.min.js"></script>
+	<script type="text/javascript" src="/resources/js/lib/angularjs/angular.min.js"></script>
+	<script type="text/javascript" src="/resources/js/lib/angularjs/angular-route.min.js"></script>
+	<script type="text/javascript" src="/resources/js/lib/angularjs/angular-animate.min.js"></script>
+	<script type="text/javascript" src="/resources/js/lib/requirejs/require.min.js" data-main="/app/main"></script>
 </body>
 </html>

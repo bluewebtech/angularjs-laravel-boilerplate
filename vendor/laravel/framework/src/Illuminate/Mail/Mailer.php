@@ -4,7 +4,8 @@ use Closure;
 use Swift_Mailer;
 use Swift_Message;
 use Illuminate\Log\Writer;
-use Illuminate\View\Environment;
+use Illuminate\View\Factory;
+use Illuminate\Events\Dispatcher;
 use Illuminate\Queue\QueueManager;
 use Illuminate\Container\Container;
 use Illuminate\Support\SerializableClosure;
@@ -12,9 +13,9 @@ use Illuminate\Support\SerializableClosure;
 class Mailer {
 
 	/**
-	 * The view environment instance.
+	 * The view factory instance.
 	 *
-	 * @var \Illuminate\View\Environment
+	 * @var \Illuminate\View\Factory
 	 */
 	protected $views;
 
@@ -24,6 +25,13 @@ class Mailer {
 	 * @var \Swift_Mailer
 	 */
 	protected $swift;
+
+	/**
+	 * The event dispatcher instance.
+	 *
+	 * @var \Illuminate\Events\Dispatcher
+	 */
+	protected $events;
 
 	/**
 	 * The global from address and name.
@@ -42,9 +50,16 @@ class Mailer {
 	/**
 	 * The IoC container instance.
 	 *
-	 * @var \Illuminate\Container
+	 * @var \Illuminate\Container\Container
 	 */
 	protected $container;
+
+	/*
+	 * The QueueManager instance.
+	 *
+	 * @var \Illuminate\Queue\QueueManager
+	 */
+	protected $queue;
 
 	/**
 	 * Indicates if the actual sending is disabled.
@@ -61,16 +76,24 @@ class Mailer {
 	protected $failedRecipients = array();
 
 	/**
+	 * Array of parsed views containing html and text view name.
+	 *
+	 * @var array
+	 */
+	protected $parsedViews = array();
+
+	/**
 	 * Create a new Mailer instance.
 	 *
-	 * @param  \Illuminate\View\Environment  $views
+	 * @param  \Illuminate\View\Factory  $views
 	 * @param  \Swift_Mailer  $swift
 	 * @return void
 	 */
-	public function __construct(Environment $views, Swift_Mailer $swift)
+	public function __construct(Factory $views, Swift_Mailer $swift, Dispatcher $events = null)
 	{
 		$this->views = $views;
 		$this->swift = $swift;
+		$this->events = $events;
 	}
 
 	/**
@@ -291,19 +314,22 @@ class Mailer {
 	 * Send a Swift Message instance.
 	 *
 	 * @param  \Swift_Message  $message
-	 * @return int
+	 * @return void
 	 */
 	protected function sendSwiftMessage($message)
 	{
+		if ($this->events)
+		{
+			$this->events->fire('mailer.sending', array($message));
+		}
+
 		if ( ! $this->pretending)
 		{
-			return $this->swift->send($message, $this->failedRecipients);
+			$this->swift->send($message, $this->failedRecipients);
 		}
 		elseif (isset($this->logger))
 		{
 			$this->logMessage($message);
-
-			return 1;
 		}
 	}
 
@@ -387,11 +413,11 @@ class Mailer {
 	}
 
 	/**
-	 * Get the view environment instance.
+	 * Get the view factory instance.
 	 *
-	 * @return \Illuminate\View\Environment
+	 * @return \Illuminate\View\Factory
 	 */
-	public function getViewEnvironment()
+	public function getViewFactory()
 	{
 		return $this->views;
 	}

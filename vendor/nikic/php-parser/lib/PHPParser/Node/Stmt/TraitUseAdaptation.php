@@ -1,5 +1,9 @@
 <?php
 
-abstract class PHPParser_Node_Stmt_TraitUseAdaptation extends PHPParser_Node_Stmt
+namespace PhpParser\Node\Stmt;
+
+use PhpParser\Node\Stmt;
+
+abstract class TraitUseAdaptation extends Stmt
 {
 }

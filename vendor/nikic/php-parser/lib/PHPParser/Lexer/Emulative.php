@@ -1,32 +1,38 @@
 <?php
 
+namespace PhpParser\Lexer;
+
+use PhpParser\Parser;
+
 /**
  * ATTENTION: This code is WRITE-ONLY. Do not try to read it.
  */
-class PHPParser_Lexer_Emulative extends PHPParser_Lexer
+class Emulative extends \PhpParser\Lexer
 {
     protected $newKeywords;
     protected $inObjectAccess;
+
+    const T_ELLIPSIS  = 1001;
+    const T_POW       = 1002;
+    const T_POW_EQUAL = 1003;
+
+    const PHP_5_6 = '5.6.0beta1';
+    const PHP_5_5 = '5.5.0beta1';
+    const PHP_5_4 = '5.4.0beta1';
 
     public function __construct() {
         parent::__construct();
 
         $newKeywordsPerVersion = array(
-            '5.5.0-dev' => array(
-                'finally'       => PHPParser_Parser::T_FINALLY,
-                'yield'         => PHPParser_Parser::T_YIELD,
+            self::PHP_5_5 => array(
+                'finally'       => Parser::T_FINALLY,
+                'yield'         => Parser::T_YIELD,
             ),
-            '5.4.0-dev' => array(
-                'callable'      => PHPParser_Parser::T_CALLABLE,
-                'insteadof'     => PHPParser_Parser::T_INSTEADOF,
-                'trait'         => PHPParser_Parser::T_TRAIT,
-                '__trait__'     => PHPParser_Parser::T_TRAIT_C,
-            ),
-            '5.3.0-dev' => array(
-                '__dir__'       => PHPParser_Parser::T_DIR,
-                'goto'          => PHPParser_Parser::T_GOTO,
-                'namespace'     => PHPParser_Parser::T_NAMESPACE,
-                '__namespace__' => PHPParser_Parser::T_NS_C,
+            self::PHP_5_4 => array(
+                'callable'      => Parser::T_CALLABLE,
+                'insteadof'     => Parser::T_INSTEADOF,
+                'trait'         => Parser::T_TRAIT,
+                '__trait__'     => Parser::T_TRAIT_C,
             ),
         );
 
@@ -38,17 +44,20 @@ class PHPParser_Lexer_Emulative extends PHPParser_Lexer
 
             $this->newKeywords += $newKeywords;
         }
+
+        if (version_compare(PHP_VERSION, self::PHP_5_6, '<')) {
+            $this->tokenMap[self::T_ELLIPSIS]  = Parser::T_ELLIPSIS;
+            $this->tokenMap[self::T_POW]       = Parser::T_POW;
+            $this->tokenMap[self::T_POW_EQUAL] = Parser::T_POW_EQUAL;
+        }
     }
 
     public function startLexing($code) {
         $this->inObjectAccess = false;
 
-        // on PHP 5.4 don't do anything
-        if (version_compare(PHP_VERSION, '5.4.0RC1', '>=')) {
-            parent::startLexing($code);
-        } else {
-            $code = $this->preprocessCode($code);
-            parent::startLexing($code);
+        $preprocessedCode = $this->preprocessCode($code);
+        parent::startLexing($preprocessedCode);
+        if ($preprocessedCode !== $code) {
             $this->postprocessTokens();
         }
     }
@@ -58,45 +67,24 @@ class PHPParser_Lexer_Emulative extends PHPParser_Lexer
      * ~LABEL~ is never valid PHP code, that's why we can (to some degree) safely
      * use it here.
      * Later when preprocessing the tokens these sequences will either be replaced
-     * by real tokens or replaced with their original content (e.g. if they occured
+     * by real tokens or replaced with their original content (e.g. if they occurred
      * inside a string, i.e. a place where they don't have a special meaning).
      */
     protected function preprocessCode($code) {
-        // binary notation (0b010101101001...)
-        $code = preg_replace('(\b0b[01]+\b)', '~__EMU__BINARY__$0__~', $code);
-
-        if (version_compare(PHP_VERSION, '5.3.0', '<')) {
-            // namespace separator (backslash not followed by some special characters,
-            // which are not valid after a NS separator, but would cause problems with
-            // escape sequence parsing if one would replace the backslash there)
-            $code = preg_replace('(\\\\(?!["\'`${\\\\]))', '~__EMU__NS__~', $code);
-
-            // nowdoc (<<<'ABC'\ncontent\nABC;)
-            $code = preg_replace_callback(
-                '((*BSR_ANYCRLF)        # set \R to (?>\r\n|\r|\n)
-                  (b?<<<[\t ]*\'([a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*)\'\R) # opening token
-                  ((?:(?!\2;?\R).*\R)*) # content
-                  (\2)                  # closing token
-                  (?=;?\R)              # must be followed by newline (with optional semicolon)
-                 )x',
-                array($this, 'encodeNowdocCallback'),
-                $code
-            );
+        if (version_compare(PHP_VERSION, self::PHP_5_6, '>=')) {
+            return $code;
         }
 
-        return $code;
-    }
+        $code = str_replace('...', '~__EMU__ELLIPSIS__~', $code);
+        $code = preg_replace('((?<!/)\*\*=)', '~__EMU__POWEQUAL__~', $code);
+        $code = preg_replace('((?<!/)\*\*(?!/))', '~__EMU__POW__~', $code);
 
-    /*
-     * As nowdocs can have arbitrary content but LABELs can only contain a certain
-     * range of characters, the nowdoc content is encoded as hex and separated by
-     * 'x' tokens. So the result of the encoding will look like this:
-     * ~__EMU__NOWDOC__{HEX(START_TOKEN)}x{HEX(CONTENT)}x{HEX(END_TOKEN)}~
-     */
-    public function encodeNowdocCallback(array $matches) {
-        return '~__EMU__NOWDOC__'
-                . bin2hex($matches[1]) . 'x' . bin2hex($matches[3]) . 'x' . bin2hex($matches[4])
-                . '__~';
+        if (version_compare(PHP_VERSION, self::PHP_5_4, '>=')) {
+            return $code;
+        }
+
+        // binary notation (0b010101101001...)
+        return preg_replace('(\b0b[01]+\b)', '~__EMU__BINARY__$0__~', $code);
     }
 
     /*
@@ -107,7 +95,7 @@ class PHPParser_Lexer_Emulative extends PHPParser_Lexer
         // we need to manually iterate and manage a count because we'll change
         // the tokens array on the way
         for ($i = 0, $c = count($this->tokens); $i < $c; ++$i) {
-            // first check that the following tokens are form ~LABEL~,
+            // first check that the following tokens are of form ~LABEL~,
             // then match the __EMU__... sequence.
             if ('~' === $this->tokens[$i]
                 && isset($this->tokens[$i + 2])
@@ -121,22 +109,18 @@ class PHPParser_Lexer_Emulative extends PHPParser_Lexer
                     $replace = array(
                         array(is_int(bindec($matches[2])) ? T_LNUMBER : T_DNUMBER, $matches[2], $this->tokens[$i + 1][2])
                     );
-                } elseif ('NS' === $matches[1]) {
-                    // a \ single char token is returned here and replaced by a
-                    // PHPParser_Parser::T_NS_SEPARATOR token in ->getNextToken(). This hacks around
-                    // the limitations arising from T_NS_SEPARATOR not being defined on 5.3
-                    $replace = array('\\');
-                } elseif ('NOWDOC' === $matches[1]) {
-                    // decode the encoded nowdoc payload; pack('H*' is bin2hex( for 5.3
-                    list($start, $content, $end) = explode('x', $matches[2]);
-                    list($start, $content, $end) = array(pack('H*', $start), pack('H*', $content), pack('H*', $end));
-
-                    $replace = array();
-                    $replace[] = array(T_START_HEREDOC, $start, $this->tokens[$i + 1][2]);
-                    if ('' !== $content) {
-                        $replace[] = array(T_ENCAPSED_AND_WHITESPACE, $content, -1);
-                    }
-                    $replace[] = array(T_END_HEREDOC, $end, -1);
+                } else if ('ELLIPSIS' === $matches[1]) {
+                    $replace = array(
+                        array(self::T_ELLIPSIS, '...', $this->tokens[$i + 1][2])
+                    );
+                } else if ('POW' === $matches[1]) {
+                    $replace = array(
+                        array(self::T_POW, '**', $this->tokens[$i + 1][2])
+                    );
+                } else if ('POWEQUAL' === $matches[1]) {
+                    $replace = array(
+                        array(self::T_POW_EQUAL, '**=', $this->tokens[$i + 1][2])
+                    );
                 } else {
                     // just ignore all other __EMU__ sequences
                     continue;
@@ -165,11 +149,12 @@ class PHPParser_Lexer_Emulative extends PHPParser_Lexer
     public function restoreContentCallback(array $matches) {
         if ('BINARY' === $matches[1]) {
             return $matches[2];
-        } elseif ('NS' === $matches[1]) {
-            return '\\';
-        } elseif ('NOWDOC' === $matches[1]) {
-            list($start, $content, $end) = explode('x', $matches[2]);
-            return pack('H*', $start) . pack('H*', $content) . pack('H*', $end);
+        } else if ('ELLIPSIS' === $matches[1]) {
+            return '...';
+        } else if ('POW' === $matches[1]) {
+            return '**';
+        } else if ('POWEQUAL' === $matches[1]) {
+            return '**=';
         } else {
             return $matches[0];
         }
@@ -181,15 +166,12 @@ class PHPParser_Lexer_Emulative extends PHPParser_Lexer
         // replace new keywords by their respective tokens. This is not done
         // if we currently are in an object access (e.g. in $obj->namespace
         // "namespace" stays a T_STRING tokens and isn't converted to T_NAMESPACE)
-        if (PHPParser_Parser::T_STRING === $token && !$this->inObjectAccess) {
+        if (Parser::T_STRING === $token && !$this->inObjectAccess) {
             if (isset($this->newKeywords[strtolower($value)])) {
                 return $this->newKeywords[strtolower($value)];
             }
-        // backslashes are replaced by T_NS_SEPARATOR tokens
-        } elseif (92 === $token) { // ord('\\')
-            return PHPParser_Parser::T_NS_SEPARATOR;
         // keep track of whether we currently are in an object access (after ->)
-        } elseif (PHPParser_Parser::T_OBJECT_OPERATOR === $token) {
+        } elseif (Parser::T_OBJECT_OPERATOR === $token) {
             $this->inObjectAccess = true;
         } else {
             $this->inObjectAccess = false;

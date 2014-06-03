@@ -8,7 +8,7 @@
  * Here's an example of how to encrypt and decrypt text with this library:
  * <code>
  * <?php
- *    include('Crypt/RSA.php');
+ *    include 'Crypt/RSA.php';
  *
  *    $rsa = new Crypt_RSA();
  *    extract($rsa->createKey());
@@ -26,7 +26,7 @@
  * Here's an example of how to create signatures and verify signatures with this library:
  * <code>
  * <?php
- *    include('Crypt/RSA.php');
+ *    include 'Crypt/RSA.php';
  *
  *    $rsa = new Crypt_RSA();
  *    extract($rsa->createKey());
@@ -104,7 +104,7 @@ define('CRYPT_RSA_ENCRYPTION_OAEP',  1);
  * Use PKCS#1 padding.
  *
  * Although CRYPT_RSA_ENCRYPTION_OAEP offers more security, including PKCS#1 padding is necessary for purposes of backwards
- * compatability with protocols (like SSH-1) written before OAEP's introduction.
+ * compatibility with protocols (like SSH-1) written before OAEP's introduction.
  */
 define('CRYPT_RSA_ENCRYPTION_PKCS1', 2);
 /**#@-*/
@@ -128,7 +128,7 @@ define('CRYPT_RSA_SIGNATURE_PSS',  1);
  * Use the PKCS#1 scheme by default.
  *
  * Although CRYPT_RSA_SIGNATURE_PSS offers more security, including PKCS#1 signing is necessary for purposes of backwards
- * compatability with protocols (like SSH-2) written before PSS's introduction.
+ * compatibility with protocols (like SSH-2) written before PSS's introduction.
  */
 define('CRYPT_RSA_SIGNATURE_PKCS1', 2);
 /**#@-*/
@@ -241,7 +241,6 @@ define('CRYPT_RSA_PUBLIC_FORMAT_PKCS1', 7);
  *
  * @package Crypt_RSA
  * @author  Jim Wigginton <terrafrost@php.net>
- * @version 0.1.0
  * @access  public
  */
 class Crypt_RSA
@@ -478,7 +477,7 @@ class Crypt_RSA
                 case extension_loaded('openssl') && version_compare(PHP_VERSION, '4.2.0', '>=') && file_exists($this->configFile):
                     // some versions of XAMPP have mismatched versions of OpenSSL which causes it not to work
                     ob_start();
-                    phpinfo();
+                    @phpinfo();
                     $content = ob_get_contents();
                     ob_end_clean();
 
@@ -756,8 +755,8 @@ class Crypt_RSA
                     strlen('ssh-rsa'), 'ssh-rsa', strlen($raw['publicExponent']), $raw['publicExponent'], strlen($raw['modulus']), $raw['modulus']
                 );
                 $source = pack('Na*Na*Na*Na*',
-                              strlen('ssh-rsa'), 'ssh-rsa', strlen($encryption), $encryption,
-                              strlen($this->comment), $this->comment, strlen($public), $public
+                    strlen('ssh-rsa'), 'ssh-rsa', strlen($encryption), $encryption,
+                    strlen($this->comment), $this->comment, strlen($public), $public
                 );
                 $public = base64_encode($public);
                 $key.= "Public-Lines: " . ((strlen($public) + 63) >> 6) . "\r\n";
@@ -1479,6 +1478,19 @@ class Crypt_RSA
             $this->publicExponent = false;
         }
 
+        switch ($type) {
+            case CRYPT_RSA_PUBLIC_FORMAT_OPENSSH:
+            case CRYPT_RSA_PUBLIC_FORMAT_RAW:
+                $this->setPublicKey();
+                break;
+            case CRYPT_RSA_PRIVATE_FORMAT_PKCS1:
+                switch (true) {
+                    case strpos($key, '-BEGIN PUBLIC KEY-') !== false:
+                    case strpos($key, '-BEGIN RSA PUBLIC KEY-') !== false:
+                        $this->setPublicKey();
+                }
+        }
+
         return true;
     }
 
@@ -1505,7 +1517,9 @@ class Crypt_RSA
      * used in certain contexts.  For example, in SSH-2, RSA authentication works by sending the public key along with a
      * message signed by the private key to the server.  The SSH-2 server looks the public key up in an index of public keys
      * and if it's present then proceeds to verify the signature.  Problem is, if your private key doesn't include the public
-     * exponent this won't work unless you manually add the public exponent.
+     * exponent this won't work unless you manually add the public exponent. phpseclib tries to guess if the key being used
+     * is the public key but in the event that it guesses incorrectly you might still want to explicitly set the key as being
+     * public.
      *
      * Do note that when a new key is loaded the index will be cleared.
      *
@@ -1558,6 +1572,40 @@ class Crypt_RSA
 
         $this->publicExponent = $components['publicExponent'];
 
+        return true;
+    }
+
+    /**
+     * Defines the private key
+     *
+     * If phpseclib guessed a private key was a public key and loaded it as such it might be desirable to force
+     * phpseclib to treat the key as a private key. This function will do that.
+     *
+     * Do note that when a new key is loaded the index will be cleared.
+     *
+     * Returns true on success, false on failure
+     *
+     * @see getPublicKey()
+     * @access public
+     * @param String $key optional
+     * @param Integer $type optional
+     * @return Boolean
+     */
+    function setPrivateKey($key = false, $type = false)
+    {
+        if ($key === false && !empty($this->publicExponent)) {
+            unset($this->publicExponent);
+            return true;
+        }
+
+        $rsa = new Crypt_RSA();
+        if (!$rsa->loadKey($key, $type)) {
+            return false;
+        }
+        unset($rsa->publicExponent);
+
+        // don't overwrite the old key if the new key is invalid
+        $this->loadKey($rsa);
         return true;
     }
 
@@ -2275,11 +2323,11 @@ class Crypt_RSA
      *
      * See {@link http://tools.ietf.org/html/rfc3447#section-7.2.2 RFC3447#section-7.2.2}.
      *
-     * For compatability purposes, this function departs slightly from the description given in RFC3447.
+     * For compatibility purposes, this function departs slightly from the description given in RFC3447.
      * The reason being that RFC2313#section-8.1 (PKCS#1 v1.5) states that ciphertext's encrypted by the
      * private key should have the second byte set to either 0 or 1 and that ciphertext's encrypted by the
      * public key should have the second byte set to 2.  In RFC3447 (PKCS#1 v2.1), the second byte is supposed
-     * to be 2 regardless of which key is used.  For compatability purposes, we'll just check to make sure the
+     * to be 2 regardless of which key is used.  For compatibility purposes, we'll just check to make sure the
      * second byte is 2 or less.  If it is, we'll accept the decrypted string as valid.
      *
      * As a consequence of this, a private key encrypted ciphertext produced with Crypt_RSA may not decrypt

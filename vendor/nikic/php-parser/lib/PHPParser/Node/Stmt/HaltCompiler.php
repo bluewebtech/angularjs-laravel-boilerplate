@@ -1,9 +1,13 @@
 <?php
 
+namespace PhpParser\Node\Stmt;
+
+use PhpParser\Node\Stmt;
+
 /**
  * @property string $remaining Remaining text after halt compiler statement.
  */
-class PHPParser_Node_Stmt_HaltCompiler extends PHPParser_Node_Stmt
+class HaltCompiler extends Stmt
 {
     /**
      * Constructs a __halt_compiler node.

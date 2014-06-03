@@ -267,7 +267,9 @@ class BelongsToMany extends Relation {
 	{
 		$query->select(new \Illuminate\Database\Query\Expression('count(*)'));
 
-		$query->from($this->table.' as '.$hash = $this->getRelationCountHash());
+		$tablePrefix = $this->query->getQuery()->getConnection()->getTablePrefix();
+
+		$query->from($this->table.' as '.$tablePrefix.$hash = $this->getRelationCountHash());
 
 		$key = $this->wrap($this->getQualifiedParentKeyName());
 
@@ -373,7 +375,7 @@ class BelongsToMany extends Relation {
 	 *
 	 * @param  array   $models
 	 * @param  string  $relation
-	 * @return void
+	 * @return array
 	 */
 	public function initRelation(array $models, $relation)
 	{
@@ -554,14 +556,20 @@ class BelongsToMany extends Relation {
 	}
 
 	/**
-	 * Sync the intermediate tables with a list of IDs.
+	 * Sync the intermediate tables with a list of IDs or collection of models.
 	 *
-	 * @param  array  $ids
+	 * @param  $ids
 	 * @param  bool   $detaching
-	 * @return void
+	 * @return array
 	 */
-	public function sync(array $ids, $detaching = true)
+	public function sync($ids, $detaching = true)
 	{
+		$changes = array(
+			'attached' => array(), 'detached' => array(), 'updated' => array()
+		);
+
+		if ($ids instanceof Collection) $ids = $ids->modelKeys();
+
 		// First we need to attach any of the associated models that are not currently
 		// in this joining table. We'll spin through the given IDs, checking to see
 		// if they exist in the array of current ones, and if not we will insert.
@@ -577,14 +585,23 @@ class BelongsToMany extends Relation {
 		if ($detaching && count($detach) > 0)
 		{
 			$this->detach($detach);
+
+			$changes['detached'] = (array) array_map('intval', $detach);
 		}
 
 		// Now we are finally ready to attach the new records. Note that we'll disable
 		// touching until after the entire operation is complete so we don't fire a
 		// ton of touch operations until we are totally done syncing the records.
-		$this->attachNew($records, $current, false);
+		$changes = array_merge(
+			$changes, $this->attachNew($records, $current, false)
+		);
 
-		$this->touchIfTouching();
+		if (count($changes['attached']) || count($changes['updated']))
+		{
+			$this->touchIfTouching();
+		}
+
+		return $changes;
 	}
 
 	/**
@@ -616,10 +633,12 @@ class BelongsToMany extends Relation {
 	 * @param  array  $records
 	 * @param  array  $current
 	 * @param  bool   $touch
-	 * @return void
+	 * @return array
 	 */
 	protected function attachNew(array $records, array $current, $touch = true)
 	{
+		$changes = array('attached' => array(), 'updated' => array());
+
 		foreach ($records as $id => $attributes)
 		{
 			// If the ID is not in the list of existing pivot IDs, we will insert a new pivot
@@ -628,12 +647,22 @@ class BelongsToMany extends Relation {
 			if ( ! in_array($id, $current))
 			{
 				$this->attach($id, $attributes, $touch);
+
+				$changes['attached'][] = (int) $id;
 			}
+
+			// Now we'll try to update an existing pivot record with the attributes that were
+			// given to the method. If the model is actually updated we will add it to the
+			// list of updated pivot records so we return them back out to the consumer.
 			elseif (count($attributes) > 0)
 			{
-				$this->updateExistingPivot($id, $attributes, $touch);
+				if ($this->updateExistingPivot($id, $attributes, $touch))
+				{
+					$changes['updated'][] = (int) $id;
+				}
 			}
 		}
+		return $changes;
 	}
 
 	/**
@@ -651,9 +680,11 @@ class BelongsToMany extends Relation {
 			$attributes = $this->setTimestampsOnAttach($attributes, true);
 		}
 
-		$this->newPivotStatementForId($id)->update($attributes);
+		$updated = $this->newPivotStatementForId($id)->update($attributes);
 
 		if ($touch) $this->touchIfTouching();
+
+		return $updated;
 	}
 
 	/**
@@ -679,7 +710,7 @@ class BelongsToMany extends Relation {
 	 * Create an array of records to insert into the pivot table.
 	 *
 	 * @param  array  $ids
-	 * @return void
+	 * @return array
 	 */
 	protected function createAttachRecords($ids, array $attributes)
 	{
@@ -764,7 +795,7 @@ class BelongsToMany extends Relation {
 	}
 
 	/**
-	 * Set the creation and update timstamps on an attach record.
+	 * Set the creation and update timestamps on an attach record.
 	 *
 	 * @param  array  $record
 	 * @param  bool   $exists
@@ -821,9 +852,9 @@ class BelongsToMany extends Relation {
 	 */
 	public function touchIfTouching()
 	{
-	 	if ($this->touchingParent()) $this->getParent()->touch();
+		if ($this->touchingParent()) $this->getParent()->touch();
 
-	 	if ($this->getParent()->touches($this->relationName)) $this->touch();
+		if ($this->getParent()->touches($this->relationName)) $this->touch();
 	}
 
 	/**
@@ -843,7 +874,7 @@ class BelongsToMany extends Relation {
 	 */
 	protected function guessInverseRelation()
 	{
-		return strtolower(str_plural(class_basename($this->getParent())));
+		return camel_case(str_plural(class_basename($this->getParent())));
 	}
 
 	/**
@@ -888,7 +919,7 @@ class BelongsToMany extends Relation {
 	 *
 	 * @param  array  $attributes
 	 * @param  bool   $exists
-	 * @return \Illuminate\Database\Eloquent\Relation\Pivot
+	 * @return \Illuminate\Database\Eloquent\Relations\Pivot
 	 */
 	public function newPivot(array $attributes = array(), $exists = false)
 	{
@@ -928,9 +959,9 @@ class BelongsToMany extends Relation {
 	 *
 	 * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
 	 */
-	public function withTimestamps()
+	public function withTimestamps($createdAt = null, $updatedAt = null)
 	{
-		return $this->withPivot($this->createdAt(), $this->updatedAt());
+		return $this->withPivot($createdAt ?: $this->createdAt(), $updatedAt ?: $this->updatedAt());
 	}
 
 	/**
@@ -944,7 +975,7 @@ class BelongsToMany extends Relation {
 	}
 
 	/**
-	 * Get the key for comparing against the pareny key in "has" query.
+	 * Get the key for comparing against the parent key in "has" query.
 	 *
 	 * @return string
 	 */
@@ -974,7 +1005,7 @@ class BelongsToMany extends Relation {
 	}
 
 	/**
-	 * Get the fully qualified parent key naem.
+	 * Get the fully qualified parent key name.
 	 *
 	 * @return string
 	 */
@@ -991,6 +1022,16 @@ class BelongsToMany extends Relation {
 	public function getTable()
 	{
 		return $this->table;
+	}
+
+	/**
+	 * Get the relationship name for the relationship.
+	 *
+	 * @return string
+	 */
+	public function getRelationName()
+	{
+		return $this->relationName;
 	}
 
 }

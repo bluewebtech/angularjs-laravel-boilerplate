@@ -1,21 +1,26 @@
 <?php
 
+namespace PhpParser\Node\Expr;
+
+use PhpParser\Node\Arg;
+use PhpParser\Node\Expr;
+
 /**
- * @property PHPParser_Node_Expr        $var  Variable holding object
- * @property string|PHPParser_Node_Expr $name Method name
- * @property PHPParser_Node_Arg[]       $args Arguments
+ * @property Expr        $var  Variable holding object
+ * @property string|Expr $name Method name
+ * @property Arg[]       $args Arguments
  */
-class PHPParser_Node_Expr_MethodCall extends PHPParser_Node_Expr
+class MethodCall extends Expr
 {
     /**
      * Constructs a function call node.
      *
-     * @param PHPParser_Node_Expr        $var        Variable holding object
-     * @param string|PHPParser_Node_Expr $name       Method name
-     * @param PHPParser_Node_Arg[]       $args       Arguments
-     * @param array                      $attributes Additional attributes
+     * @param Expr        $var        Variable holding object
+     * @param string|Expr $name       Method name
+     * @param Arg[]       $args       Arguments
+     * @param array       $attributes Additional attributes
      */
-    public function __construct(PHPParser_Node_Expr $var, $name, array $args = array(), array $attributes = array()) {
+    public function __construct(Expr $var, $name, array $args = array(), array $attributes = array()) {
         parent::__construct(
             array(
                 'var'  => $var,
